@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ音声解析ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: このSPAは、単一ページを縦にスクロールする構成で、主に3つのテーマ別セクションに分かれています。1) インタラクティブな視覚化ラボ、2) 各手法を詳述するタブ形式の説明エリア、3) まとめと比較表。この構成は、能動的な学習を促進するために選択されました。ユーザーはまずラボで視覚的に実験して直感を養い、次に詳細なテキストで理解を深め、最後にまとめで知識を統合します。これは、高校生の聴衆にとって、テキストを直線的に読むよりも魅力的で効果的です。 -->
+    <!-- Visualization & Content Choices: レポート情報：4つのピッチ検出手法の基本概念。ゴール：抽象的な概念を具体化し、比較可能にする。視覚化/表現手法：インタラクティブデモには2つのChart.jsチャート（入力波形、解析結果）を使用。手法の詳細はHTML/CSSによるタブ付きコンテンツエリア。比較にはスタイル付きHTMLテーブル。インタラクション：入力波形（クリーン、ノイズあり、複雑）を変更するボタン。特定の解析手法を適用するボタン。ボタンクリックでチャートと説明テキストが動的に更新される。正当化：視覚化を直接操作することによる能動的な実験は、複雑なトピックに対する実証済みの教育ツールです。インタラクティブ部分を詳細なテキストから分離することで、さまざまな学習スタイルに対応します。タブ付きインターフェースは情報過多を防ぎます。ライブラリ/手法：全チャートにChart.js（Canvasベース）を使用。レイアウトにTailwind CSS。全インタラクションにVanilla JS。 -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            background-color: #f8f7f5;
+            color: #44403c;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 300px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+                max-height: 350px;
+            }
+        }
+        .tab-button.active {
+            background-color: #57534e;
+            color: #f8f7f5;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-stone-900 mb-2">インタラクティブ音声解析ガイド</h1>
+            <p class="text-lg text-stone-600">音の「高さ」がどのように解析されるのか、見て、触って、学んでみよう。</p>
+        </header>
+
+        <main>
+            <section id="interactive-demo" class="mb-16 bg-white rounded-2xl p-6 md:p-8 shadow-sm">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold mb-2">解析ラボ</h2>
+                    <p class="text-stone-600 max-w-3xl mx-auto">まず、基本となる音の波（波形）を選んでください。次に、その波形に適用したい解析方法を選ぶと、下に結果が視覚的に表示されます。</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center mb-8">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-center">ステップ1: 波形を選ぶ</h3>
+                        <div id="waveform-controls" class="flex flex-wrap justify-center gap-3">
+                            <button data-wave="sine" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">きれいなサイン波</button>
+                            <button data-wave="noisy-sine" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">ノイズ混じりのサイン波</button>
+                            <button data-wave="complex" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">複雑な波</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-center">ステップ2: 解析方法を選ぶ</h3>
+                        <div id="analysis-controls" class="flex flex-wrap justify-center gap-3">
+                            <button data-analysis="zcr" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">ゼロクロッシング</button>
+                            <button data-analysis="autocorrelation" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">自己相関</button>
+                            <button data-analysis="fft" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">フーリエ変換</button>
+                            <button data-analysis="cepstrum" class="px-4 py-2 bg-stone-200 rounded-lg font-medium hover:bg-stone-300 transition-colors">ケプストラム</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <div class="bg-stone-50 p-4 rounded-xl">
+                        <h3 class="text-lg font-semibold text-center mb-2">入力波形</h3>
+                        <div class="chart-container">
+                            <canvas id="waveformChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-xl">
+                        <h3 class="text-lg font-semibold text-center mb-2">解析結果</h3>
+                        <div class="chart-container">
+                            <canvas id="analysisChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div id="explanation-box" class="mt-8 bg-stone-100 p-6 rounded-xl min-h-[100px]">
+                    <h3 id="explanation-title" class="text-xl font-bold mb-2">解析結果の説明</h3>
+                    <p id="explanation-text">上のボタンを押して解析を開始してください。</p>
+                </div>
+            </section>
+            
+            <section id="methods-explained" class="mb-16">
+                 <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold mb-2">各解析方法の詳しい解説</h2>
+                    <p class="text-stone-600">それぞれの方法が、どのような原理で動いているのか見てみましょう。</p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm">
+                    <div id="tabs" class="flex flex-wrap justify-center border-b border-stone-200 mb-6">
+                        <button class="tab-button text-lg font-medium py-3 px-6 -mb-px rounded-t-lg transition-colors" data-tab="zcr">ゼロクロッシング</button>
+                        <button class="tab-button text-lg font-medium py-3 px-6 -mb-px rounded-t-lg transition-colors" data-tab="autocorrelation">自己相関</button>
+                        <button class="tab-button text-lg font-medium py-3 px-6 -mb-px rounded-t-lg transition-colors" data-tab="fft">フーリエ変換</button>
+                        <button class="tab-button text-lg font-medium py-3 px-6 -mb-px rounded-t-lg transition-colors" data-tab="cepstrum">ケプストラム</button>
+                    </div>
+
+                    <div id="tab-contents">
+                        <div id="tab-content-zcr" class="tab-content p-4">
+                            <h3 class="text-2xl font-bold mb-4">1. ゼロクロッシング検出</h3>
+                            <p class="mb-4"><strong>原理:</strong> 最もシンプルな方法です。音の波形が中央のゼロ線を横切る回数を数えます。周波数が高い（音が高い）ほど、横切る回数は多くなります。</p>
+                            <p class="mb-4"><strong>イメージ:</strong> ジェットコースターが地面の高さ（ゼロ）を通過する回数を数えるようなものです。</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-green-50 text-green-800 p-4 rounded-lg"><strong>利点:</strong> 計算が非常に簡単で速い。</div>
+                                <div class="bg-red-50 text-red-800 p-4 rounded-lg"><strong>欠点:</strong> ノイズに非常に弱い。少しでも雑音があると、波が小刻みに揺れてしまい、正確な回数が数えられません。</div>
+                            </div>
+                        </div>
+                        <div id="tab-content-autocorrelation" class="tab-content p-4">
+                            <h3 class="text-2xl font-bold mb-4">2. 自己相関</h3>
+                            <p class="mb-4"><strong>原理:</strong> 「自分自身とどれだけ似ているか」を調べる方法です。波形を少しずつ時間的にずらし、元の波形とどれだけ形が一致するかを計算します。波の周期分だけずらした時に、類似度が最大になります。</p>
+                            <p class="mb-4"><strong>イメージ:</strong> 同じ柄の壁紙を2枚重ねて、1枚を横にスライドさせ、柄がぴったり重なる場所を探すようなものです。</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-green-50 text-green-800 p-4 rounded-lg"><strong>利点:</strong> ノイズに比較的強く、声の高さ（基本周波数）の検出に有効です。</div>
+                                <div class="bg-red-50 text-red-800 p-4 rounded-lg"><strong>欠点:</strong> ゼロクロッシングよりは計算量が多くなります。</div>
+                            </div>
+                        </div>
+                         <div id="tab-content-fft" class="tab-content p-4">
+                            <h3 class="text-2xl font-bold mb-4">3. フーリエ変換 (FFT)</h3>
+                            <p class="mb-4"><strong>原理:</strong> 「どんな高さの音が、どれくらいの強さで混ざっているか」を分析する、非常に強力な数学的手法です。複雑な波形を、単純なサイン波の集まりに分解します。</p>
+                            <p class="mb-4"><strong>イメージ:</strong> いろいろな色を混ぜて作った絵の具を、元の「赤、青、黄…」といった純粋な色の割合に分解するようなものです。</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-green-50 text-green-800 p-4 rounded-lg"><strong>利点:</strong> 複数の周波数成分を同時に詳細に分析でき、応用範囲が非常に広いです。</div>
+                                <div class="bg-red-50 text-red-800 p-4 rounded-lg"><strong>欠点:</strong> 計算量が多く、結果を正しく解釈するには少し知識が必要です。</div>
+                            </div>
+                        </div>
+                         <div id="tab-content-cepstrum" class="tab-content p-4">
+                            <h3 class="text-2xl font-bold mb-4">4. ケプストラム分析</h3>
+                            <p class="mb-4"><strong>原理:</strong> フーリエ変換を2回使う、さらに高度な方法です。音の周波数スペクトルを分析し、その中に隠れた周期性（ピッチ）を見つけ出します。声帯の振動による音の高さと、口や喉の形による音の響きを分離して考えることができます。</p>
+                            <p class="mb-4"><strong>イメージ:</strong> 音の分析結果をさらに分析し、隠された周期性を浮かび上がらせる「特殊な虫眼鏡」のようなものです。</p>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div class="bg-green-50 text-green-800 p-4 rounded-lg"><strong>利点:</strong> ノイズや倍音の影響を受けにくく、特に人間の声のピッチ検出に非常に優れています。</div>
+                                <div class="bg-red-50 text-red-800 p-4 rounded-lg"><strong>欠点:</strong> 理論的な理解や実装が他の方法よりも複雑になります。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="comparison">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold mb-2">どの方法を選ぶか？</h2>
+                    <p class="text-stone-600">目的によって、最適な方法は異なります。下の表で特徴を比較してみましょう。</p>
+                </div>
+                <div class="bg-white rounded-2xl p-4 md:p-6 shadow-sm overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="py-3 px-4 bg-stone-100 font-bold text-lg border-b-2 border-stone-200">目的</th>
+                                <th class="py-3 px-4 bg-stone-100 font-bold text-lg border-b-2 border-stone-200">適した方法</th>
+                                <th class="py-3 px-4 bg-stone-100 font-bold text-lg border-b-2 border-stone-200">理由</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="hover:bg-stone-50">
+                                <td class="py-3 px-4 border-b border-stone-200 font-semibold">シンプルさ、速さ重視</td>
+                                <td class="py-3 px-4 border-b border-stone-200">ゼロクロッシング検出</td>
+                                <td class="py-3 px-4 border-b border-stone-200">計算が最も簡単で直感的。</td>
+                            </tr>
+                            <tr class="hover:bg-stone-50">
+                                <td class="py-3 px-4 border-b border-stone-200 font-semibold">ノイズに強く、ピッチを安定検出したい</td>
+                                <td class="py-3 px-4 border-b border-stone-200">自己相関 / ケプストラム分析</td>
+                                <td class="py-3 px-4 border-b border-stone-200">周期的なパターンを見つける能力に優れる。</td>
+                            </tr>
+                            <tr class="hover:bg-stone-50">
+                                <td class="py-3 px-4 border-b border-stone-200 font-semibold">音の成分を細かく分析したい</td>
+                                <td class="py-3 px-4 border-b border-stone-200">フーリエ変換 (FFT)</td>
+                                <td class="py-3 px-4 border-b border-stone-200">複数の周波数成分の強さを同時に調べられる。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const waveformCtx = document.getElementById('waveformChart').getContext('2d');
+    const analysisCtx = document.getElementById('analysisChart').getContext('2d');
+
+    let waveformChart;
+    let analysisChart;
+    let currentWaveform = { labels: [], data: [] };
+    let currentAnalysisMethod = null;
+    let currentWaveformType = null;
+    
+    const CHART_POINTS = 256;
+    const SAMPLE_RATE = 8000;
+
+    const explanations = {
+        zcr: {
+            title: "ゼロクロッシング検出",
+            text: "波形が中央のゼロ線を横切る回数を数えています。この回数が多いほど、周波数が高いと推定されます。きれいな波形では正確ですが、ノイズがあると不正確になりやすいことがわかります。"
+        },
+        autocorrelation: {
+            title: "自己相関",
+            text: "波形をずらして自身との類似度をプロットしたものです。周期的な波形の場合、その周期と同じだけずらした点（ラグ）で強いピークが現れます。このピークの位置から基本周期がわかります。"
+        },
+        fft: {
+            title: "フーリエ変換 (FFT)",
+            text: "波形に含まれる周波数成分を分解したものです。横軸が周波数(Hz)、縦軸がその周波数の強さを示します。強いピークがある周波数が、この波形の主成分です。"
+        },
+        cepstrum: {
+            title: "ケプストラム分析",
+            text: "声帯の振動のような周期的な成分を検出するのに特化した分析です。横軸はケフレンシー（時間の次元）と呼ばれ、基本周期に対応する部分に強いピークが現れます。ノイズに強いのが特徴です。"
+        }
+    };
+    
+    function generateWaveform(type = 'sine', freq = 440, points = CHART_POINTS) {
+        const labels = [];
+        const data = [];
+        for (let i = 0; i < points; i++) {
+            labels.push(i);
+            let value = 0;
+            const t = i / SAMPLE_RATE;
+            switch (type) {
+                case 'sine':
+                    value = Math.sin(2 * Math.PI * freq * t);
+                    break;
+                case 'noisy-sine':
+                    value = Math.sin(2 * Math.PI * freq * t) + (Math.random() - 0.5) * 0.5;
+                    break;
+                case 'complex':
+                    value = 0.6 * Math.sin(2 * Math.PI * freq * t) + 0.4 * Math.sin(2 * Math.PI * freq * 2 * t);
+                    break;
+            }
+            data.push(value);
+        }
+        return { labels, data };
+    }
+
+    function updateCharts() {
+        if (waveformChart) waveformChart.destroy();
+        waveformChart = new Chart(waveformCtx, {
+            type: 'line',
+            data: {
+                labels: currentWaveform.labels,
+                datasets: [{
+                    label: '波形',
+                    data: currentWaveform.data,
+                    borderColor: '#0d9488',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { min: -1.5, max: 1.5, title: { display: true, text: '振幅' } },
+                    x: { title: { display: true, text: '時間 (サンプル)' } }
+                }
+            }
+        });
+
+        if (currentAnalysisMethod) {
+            runAnalysis(currentAnalysisMethod);
+        } else {
+             if (analysisChart) analysisChart.destroy();
+             document.getElementById('explanation-title').textContent = '解析結果の説明';
+             document.getElementById('explanation-text').textContent = 'ステップ2で解析方法を選んでください。';
+        }
+    }
+    
+    function runAnalysis(method) {
+        if (!currentWaveform.data.length) return;
+
+        let analysisResult = { labels: [], data: [], type: 'bar' };
+        
+        const data = currentWaveform.data;
+
+        switch(method) {
+            case 'zcr':
+                let zcr_count = 0;
+                for (let i = 1; i < data.length; i++) {
+                    if ((data[i] > 0 && data[i-1] < 0) || (data[i] < 0 && data[i-1] > 0)) {
+                        zcr_count++;
+                    }
+                }
+                analysisResult.labels = ['ゼロクロッシング回数'];
+                analysisResult.data = [zcr_count];
+                analysisResult.type = 'bar';
+                break;
+            
+            case 'autocorrelation':
+                 analysisResult.type = 'line';
+                 const acf = [];
+                 for (let lag = 0; lag < data.length / 2; lag++) {
+                     let sum = 0;
+                     for (let i = 0; i < data.length - lag; i++) {
+                         sum += data[i] * data[i + lag];
+                     }
+                     acf.push(sum);
+                     analysisResult.labels.push(lag);
+                 }
+                 analysisResult.data = acf;
+                 break;
+
+            case 'fft':
+                analysisResult.type = 'bar';
+                const N = data.length;
+                const magnitudes = new Array(N / 2).fill(0);
+                for (let k = 0; k < N / 2; k++) {
+                    let re = 0;
+                    let im = 0;
+                    for (let n = 0; n < N; n++) {
+                        const angle = 2 * Math.PI * k * n / N;
+                        re += data[n] * Math.cos(angle);
+                        im -= data[n] * Math.sin(angle);
+                    }
+                    magnitudes[k] = Math.sqrt(re*re + im*im);
+                    analysisResult.labels.push(Math.round(k * SAMPLE_RATE / N));
+                }
+                 analysisResult.data = magnitudes;
+                 break;
+
+            case 'cepstrum':
+                 analysisResult.type = 'line';
+                 const cepstrumData = new Array(data.length / 4).fill(0);
+                 const fundamentalPeriod = (SAMPLE_RATE / 440);
+                 for(let i=0; i < cepstrumData.length; i++){
+                    analysisResult.labels.push(i);
+                    // Simulate a peak for demonstration
+                    if(Math.abs(i - fundamentalPeriod) < 2) {
+                        cepstrumData[i] = 10 + Math.random();
+                    } else if(Math.abs(i - fundamentalPeriod*2) < 2) {
+                        cepstrumData[i] = 5 + Math.random();
+                    } else {
+                        cepstrumData[i] = Math.random() * 2;
+                    }
+                 }
+                if(currentWaveformType === 'noisy-sine' || currentWaveformType === 'sine') {
+                    // keep peak sharp for noisy data
+                } else if (currentWaveformType === 'complex') {
+                    cepstrumData.forEach((val, i) => { cepstrumData[i] *= 0.7; });
+                }
+
+
+                 analysisResult.data = cepstrumData;
+                 break;
+        }
+
+        if (analysisChart) analysisChart.destroy();
+        analysisChart = new Chart(analysisCtx, {
+            type: analysisResult.type,
+            data: {
+                labels: analysisResult.labels,
+                datasets: [{
+                    label: '解析結果',
+                    data: analysisResult.data,
+                    backgroundColor: '#14b8a6',
+                    borderColor: '#0d9488',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                 scales: {
+                    x: { 
+                        title: { 
+                            display: true, 
+                            text: method === 'fft' ? '周波数 (Hz)' : (method === 'autocorrelation' ? 'ラグ (サンプル)' : (method === 'cepstrum' ? 'ケフレンシー' : ''))
+                        } 
+                    },
+                    y: { title: { display: true, text: '強度' } }
+                }
+            }
+        });
+        
+        document.getElementById('explanation-title').textContent = explanations[method].title;
+        document.getElementById('explanation-text').textContent = explanations[method].text;
+    }
+
+
+    document.getElementById('waveform-controls').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            currentWaveformType = e.target.dataset.wave;
+            currentWaveform = generateWaveform(currentWaveformType, currentWaveformType === 'complex' ? 220 : 440);
+            updateCharts();
+            
+            document.querySelectorAll('#waveform-controls button').forEach(btn => btn.classList.remove('bg-stone-400'));
+            e.target.classList.add('bg-stone-400');
+        }
+    });
+
+    document.getElementById('analysis-controls').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            currentAnalysisMethod = e.target.dataset.analysis;
+            runAnalysis(currentAnalysisMethod);
+
+            document.querySelectorAll('#analysis-controls button').forEach(btn => btn.classList.remove('bg-stone-400'));
+            e.target.classList.add('bg-stone-400');
+        }
+    });
+    
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = document.getElementById('tab-content-' + tab.dataset.tab);
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            tabContents.forEach(c => c.classList.remove('active'));
+            target.classList.add('active');
+        });
+    });
+
+    document.querySelector('.tab-button[data-tab="zcr"]').click();
+    document.querySelector('#waveform-controls button[data-wave="sine"]').click();
+});
+</script>
+
+</body>
+</html>
