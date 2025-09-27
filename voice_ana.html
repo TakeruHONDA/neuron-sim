@@ -208,11 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const CHART_POINTS = 256;
     const SAMPLE_RATE = 8000;
+    const FUNDAMENTAL_FREQ = 440; // 基準となる基本周波数
+    const FRAME_SIZE = 32; // ZCRを計算するためのフレームサイズ
 
     const explanations = {
         zcr: {
-            title: "ゼロクロッシング検出",
-            text: "波形が中央のゼロ線を横切る回数を数えています。この回数が多いほど、周波数が高いと推定されます。きれいな波形では正確ですが、ノイズがあると不正確になりやすいことがわかります。"
+            title: "ゼロクロッシングレート (ZCR) の時間変化",
+            text: "音声波形を短い区間（フレーム）に分割し、各フレームのゼロクロッシング回数（レート）をプロットしたものです。きれいな波形では安定した値を示しますが、ノイズが多い波形（ノイズ混じりのサイン波）ではレートが急上昇し、この手法がノイズに弱いことが視覚的に分かります。このレートは、音の高さ（ピッチ）を推定する際の基本的な特徴量として使われます。"
         },
         autocorrelation: {
             title: "自己相関",
@@ -220,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         fft: {
             title: "フーリエ変換 (FFT)",
-            text: "波形に含まれる周波数成分を分解したものです。横軸が周波数(Hz)、縦軸がその周波数の強さを示します。強いピークがある周波数が、この波形の主成分です。"
+            text: "波形に含まれる周波数成分を分解したものです。横軸が周波数(Hz)、縦軸がその周波数の強さを示します。強いピークがある周波数が、この波形の主成分です。複雑な波形では、基本周波数（例: 440Hz）とその倍の周波数（倍音）にピークが現れます。"
         },
         cepstrum: {
             title: "ケプストラム分析",
@@ -228,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    function generateWaveform(type = 'sine', freq = 440, points = CHART_POINTS) {
+    function generateWaveform(type = 'sine', freq = FUNDAMENTAL_FREQ, points = CHART_POINTS) {
         const labels = [];
         const data = [];
         for (let i = 0; i < points; i++) {
@@ -240,9 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     value = Math.sin(2 * Math.PI * freq * t);
                     break;
                 case 'noisy-sine':
-                    value = Math.sin(2 * Math.PI * freq * t) + (Math.random() - 0.5) * 0.5;
+                    // ノイズでゼロクロッシングが増えるように、ノイズ成分を追加
+                    value = Math.sin(2 * Math.PI * freq * t) + (Math.random() - 0.5) * 1.5; 
                     break;
                 case 'complex':
+                    // 基本周波数とその倍音を重ね合わせる
                     value = 0.6 * Math.sin(2 * Math.PI * freq * t) + 0.4 * Math.sin(2 * Math.PI * freq * 2 * t);
                     break;
             }
@@ -288,21 +292,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function runAnalysis(method) {
         if (!currentWaveform.data.length) return;
 
-        let analysisResult = { labels: [], data: [], type: 'bar' };
+        let analysisResult = { labels: [], data: [], type: 'line' };
         
         const data = currentWaveform.data;
 
         switch(method) {
             case 'zcr':
-                let zcr_count = 0;
-                for (let i = 1; i < data.length; i++) {
-                    if ((data[i] > 0 && data[i-1] < 0) || (data[i] < 0 && data[i-1] > 0)) {
-                        zcr_count++;
+                const zcrRates = [];
+                const zcrLabels = [];
+                // フレームごとにゼロクロッシングレートを計算
+                for (let i = 0; i < data.length - FRAME_SIZE; i += FRAME_SIZE / 2) { // 50%オーバーラップ
+                    let zcr_count = 0;
+                    for (let j = 1; j < FRAME_SIZE; j++) {
+                        // ゼロクロッシングの検出
+                        const idx = i + j;
+                        if ((data[idx] > 0 && data[idx-1] <= 0) || (data[idx] <= 0 && data[idx-1] > 0)) {
+                            zcr_count++;
+                        }
                     }
+                    // レートを正規化してプロット（ここではサンプル数に対するZCR回数）
+                    zcrRates.push(zcr_count / FRAME_SIZE); 
+                    zcrLabels.push(i + FRAME_SIZE / 2); // フレームの中心サンプル番号
                 }
-                analysisResult.labels = ['ゼロクロッシング回数'];
-                analysisResult.data = [zcr_count];
-                analysisResult.type = 'bar';
+                
+                analysisResult.labels = zcrLabels;
+                analysisResult.data = zcrRates;
+                analysisResult.type = 'line';
                 break;
             
             case 'autocorrelation':
@@ -332,6 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         im -= data[n] * Math.sin(angle);
                     }
                     magnitudes[k] = Math.sqrt(re*re + im*im);
+                    // ラベルを周波数（Hz）に変換: k * (SAMPLE_RATE / N)
                     analysisResult.labels.push(Math.round(k * SAMPLE_RATE / N));
                 }
                  analysisResult.data = magnitudes;
@@ -340,25 +356,28 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'cepstrum':
                  analysisResult.type = 'line';
                  const cepstrumData = new Array(data.length / 4).fill(0);
-                 const fundamentalPeriod = (SAMPLE_RATE / 440);
+                 const fundamentalPeriodSamples = (SAMPLE_RATE / FUNDAMENTAL_FREQ);
+
+                 // ケプストラムの結果をシミュレート
                  for(let i=0; i < cepstrumData.length; i++){
                     analysisResult.labels.push(i);
-                    // Simulate a peak for demonstration
-                    if(Math.abs(i - fundamentalPeriod) < 2) {
-                        cepstrumData[i] = 10 + Math.random();
-                    } else if(Math.abs(i - fundamentalPeriod*2) < 2) {
-                        cepstrumData[i] = 5 + Math.random();
+                    // 基本周期（ケフレンシー）でピークをシミュレート
+                    if(Math.abs(i - fundamentalPeriodSamples) < 4) {
+                        let peakHeight = 10;
+                        if(currentWaveformType === 'complex') peakHeight = 7;
+                        if(currentWaveformType === 'noisy-sine') peakHeight = 9;
+
+                        // ピークの形をガウス分布的に
+                        let offset = Math.abs(i - fundamentalPeriodSamples);
+                        cepstrumData[i] = peakHeight * Math.exp(-0.1 * offset * offset) + Math.random() * 0.5;
+                    } else if(Math.abs(i - fundamentalPeriodSamples * 2) < 4) {
+                         // 倍音のピーク（通常は基本ピークより低い）
+                        cepstrumData[i] = 5 * Math.random() + 0.5;
                     } else {
-                        cepstrumData[i] = Math.random() * 2;
+                        cepstrumData[i] = Math.random() * 1.5;
                     }
                  }
-                if(currentWaveformType === 'noisy-sine' || currentWaveformType === 'sine') {
-                    // keep peak sharp for noisy data
-                } else if (currentWaveformType === 'complex') {
-                    cepstrumData.forEach((val, i) => { cepstrumData[i] *= 0.7; });
-                }
-
-
+                
                  analysisResult.data = cepstrumData;
                  break;
         }
@@ -369,12 +388,13 @@ document.addEventListener('DOMContentLoaded', () => {
             data: {
                 labels: analysisResult.labels,
                 datasets: [{
-                    label: '解析結果',
+                    label: method === 'zcr' ? 'ゼロクロッシングレート' : '解析結果',
                     data: analysisResult.data,
-                    backgroundColor: '#14b8a6',
-                    borderColor: '#0d9488',
+                    backgroundColor: method === 'zcr' ? '#ef4444' : '#14b8a6', 
+                    borderColor: method === 'zcr' ? '#b91c1c' : '#0d9488',
                     borderWidth: 2,
-                    pointRadius: 0,
+                    pointRadius: method === 'zcr' ? 2 : 0, // ZCRはポイントを強調
+                    tension: method === 'zcr' ? 0.4 : 0.1, // ZCRは少し滑らかに
                 }]
             },
             options: {
@@ -384,10 +404,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     x: { 
                         title: { 
                             display: true, 
-                            text: method === 'fft' ? '周波数 (Hz)' : (method === 'autocorrelation' ? 'ラグ (サンプル)' : (method === 'cepstrum' ? 'ケフレンシー' : ''))
-                        } 
+                            text: method === 'fft' ? '周波数 (Hz)' : (method === 'zcr' ? '時間 (サンプル)' : (method === 'autocorrelation' ? 'ラグ (サンプル)' : (method === 'cepstrum' ? 'ケフレンシー' : '')))
+                        },
+                        // ZCRの場合はフレーム中心のサンプル番号を示す
+                        min: method === 'zcr' ? 0 : undefined,
+                        max: method === 'zcr' ? CHART_POINTS : undefined,
                     },
-                    y: { title: { display: true, text: '強度' } }
+                    y: { 
+                        title: { display: true, text: method === 'zcr' ? 'ZCR' : '強度' }, // ★ここを修正
+                        // ZCRの場合はレート軸を0から1.0まで固定
+                        min: method === 'zcr' ? 0 : undefined,
+                        max: method === 'zcr' ? 1.0 : undefined,
+                    }
                 }
             }
         });
@@ -400,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('waveform-controls').addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
             currentWaveformType = e.target.dataset.wave;
-            currentWaveform = generateWaveform(currentWaveformType, currentWaveformType === 'complex' ? 220 : 440);
+            currentWaveform = generateWaveform(currentWaveformType, currentWaveformType === 'complex' ? 220 : FUNDAMENTAL_FREQ);
             updateCharts();
             
             document.querySelectorAll('#waveform-controls button').forEach(btn => btn.classList.remove('bg-stone-400'));
