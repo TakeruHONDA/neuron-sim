@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>認知神経科学 前期中間試験</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        /* Custom styles for the application */
+        body {
+            font-family: 'Helvetica Neue', 'Arial', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Meiryo', sans-serif;
+        }
+        .katex { font-size: 1.1em; }
+        
+        /* コピー防止用のCSSクラス */
+        .noselect {
+            -webkit-touch-callout: none; /* iOS Safari */
+            -webkit-user-select: none;   /* Safari */
+            -khtml-user-select: none;    /* Konqueror HTML */
+            -moz-user-select: none;      /* Firefox */
+            -ms-user-select: none;       /* Internet Explorer/Edge */
+            user-select: none;           /* Non-prefixed version */
+        }
+
+        .option-btn { transition: all 0.2s ease-in-out; }
+        .option-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .option-btn.selected { border-color: #3b82f6; background-color: #dbeafe; }
+        .option-btn.correct { background-color: #dcfce7; border-color: #22c55e; }
+        .option-btn.incorrect { background-color: #fee2e2; border-color: #ef4444; }
+        .toc-item.active { background-color: #e0f2fe; color: #0c4a6e; font-weight: bold; }
+        .toc-item.completed { background-color: #dcfce7; color: #166534; }
+        .progress-bar-inner { transition: width 0.5s ease-in-out; }
+        /* Hide default file input */
+        input[type="file"] {
+            display: none;
+        }
+        /* Teacher mode TOC styles */
+        .toc-topic-group summary {
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+        .toc-topic-group summary:hover {
+            background-color: #f3f4f6;
+        }
+        .toc-question-btn {
+            text-align: left;
+            width: 100%;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            border-radius: 0.375rem;
+        }
+        .toc-question-btn:hover {
+            background-color: #e0f2fe;
+        }
+        .toc-question-btn.active {
+            background-color: #bae6fd;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="flex flex-col md:flex-row min-h-screen">
+        <aside id="sidebar" class="w-full md:w-72 bg-white border-r border-gray-200 p-4 md:p-6">
+            <h2 id="toc-title" class="text-xl font-bold mb-4 text-gray-700">目次</h2>
+            <div id="toc" class="space-y-1">
+                </div>
+            <div id="sidebar-footer" class="mt-8">
+                <button id="end-quiz-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    終了しレポートを作成
+                </button>
+                 <button id="exit-teacher-mode-btn" class="hidden w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                    先生モードを終了
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8">
+            <div id="quiz-container" class="max-w-4xl mx-auto">
+                <div class="mb-6 p-4 bg-white rounded-xl shadow">
+                    <p id="mode-indicator" class="text-sm font-bold text-purple-600"></p>
+                    <p class="text-sm text-gray-500">現在の単元</p>
+                    <h1 id="current-topic-title" class="text-2xl font-bold text-sky-800"></h1>
+                </div>
+
+                <div id="question-area" class="bg-white p-6 md:p-8 rounded-xl shadow-lg">
+                    <div id="question-text" class="text-lg leading-relaxed mb-6 noselect" oncopy="return false;" oncut="return false;" oncontextmenu="return false;"></div>
+                    
+                    <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 noselect">
+                    </div>
+
+                    <div id="descriptive-area" class="hidden w-full mb-6">
+                        <textarea id="descriptive-input" rows="8" class="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg resize-y" placeholder="ここに回答を記述してください... (※ペースト不可)" onpaste="return false;"></textarea>
+                    </div>
+
+                    <div class="mt-8 text-center">
+                        <button id="check-answer-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                            答え合わせ
+                        </button>
+                    </div>
+                </div>
+
+                <div id="explanation-area" class="hidden mt-6 bg-white p-6 md:p-8 rounded-xl shadow-lg border-t-8">
+                    <h2 id="result-title" class="text-3xl font-bold mb-4"></h2>
+                    <p class="font-bold mb-2 text-gray-700">正解：</p>
+                    <div id="correct-answer-text" class="mb-4 p-3 bg-gray-100 rounded-md"></div>
+                    <p class="font-bold mb-2 text-gray-700">解説：</p>
+                    <div id="explanation-text" class="leading-relaxed space-y-3"></div>
+                    <hr class="my-6">
+                    <div id="understanding-buttons" class="text-center">
+                        <p class="mb-4 font-semibold text-lg">この解説で理解できましたか？</p>
+                        <button onclick="app.handleUnderstanding(true)" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg mr-4 shadow-lg transition-transform transform hover:scale-105">理解できた</button>
+                        <button onclick="app.handleUnderstanding(false)" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">理解できなかった</button>
+                    </div>
+                     <div id="teacher-next-buttons" class="hidden text-center">
+                        <button onclick="app.jumpToNextQuestion()" class="bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">次の問題へ</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div id="start-modal" class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center transform transition-all scale-100">
+            <h1 class="text-3xl font-bold text-sky-800 mb-4">認知神経科学 理解度チェック</h1>
+            <p class="text-gray-600 mb-6">はじめに、モードを選択するか、学籍番号と名前を入力してください。</p>
+            <div class="space-y-4 mb-6">
+                <input type="text" id="student-id-input" placeholder="学籍番号" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="student-name-input" placeholder="名前" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button id="start-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 mb-3">
+                学習を開始する
+            </button>
+            <button id="teacher-mode-btn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 mb-3">
+                先生モードで開始
+            </button>
+            <div class="grid grid-cols-2 gap-3">
+                <label for="load-progress-input" class="w-full cursor-pointer inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105">
+                    続きから再開
+                </label>
+                <input type="file" id="load-progress-input" accept=".json">
+                <label for="load-report-input" class="w-full cursor-pointer inline-block bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105">
+                    レポート読込
+                </label>
+                <input type="file" id="load-report-input" accept=".json">
+            </div>
+        </div>
+        
+        <div id="report-modal" class="hidden bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full transform transition-all scale-95 opacity-0 overflow-y-auto max-h-screen">
+            <h1 class="text-3xl font-bold text-sky-800 mb-2 text-center">学習レポート</h1>
+            <div id="report-student-info" class="text-center text-gray-600 mb-6"></div>
+            <div id="report-content" class="mb-6">
+                </div>
+             <div id="report-review-content" class="mb-6">
+                </div>
+            <div id="report-teacher-mode-info" class="mb-6">
+                </div>
+            <div id="report-history-section" class="mb-6">
+                 </div>
+            <div class="text-center space-x-4">
+                 <button id="review-btn" class="hidden bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    復習を開始する
+                </button>
+                 <button id="save-progress-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    進捗を保存して最初の画面に戻る
+                </button>
+                 <button id="restart-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    問題に戻る
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+window.app = {
+    state: {
+        studentId: '',
+        studentName: '',
+        startedAt: null,
+        resumedHistory: [],
+        reviewHistory: [], // 復習履歴を追加
+        currentTopicIndex: 0,
+        currentGroupIndex: 0,
+        topicGroups: [],
+        currentQuestion: null,
+        selectedAnswerIndex: null,
+        answeredCorrectly: false,
+        usedQuestionIds: new Set(),
+        wrongQuestionIds: new Set(), // 間違った問題のIDを記録
+        choiceAnswers: {}, // 追加：選択式問題で選んだ選択肢をすべて記録
+        descriptiveAnswers: {}, // 記述式問題の回答を保存
+        reportData: {},
+        isReviewMode: false,
+        reviewQueue: [],
+        isTeacherMode: false,
+        teacherModeHistory: [], 
+        saveHistory: [],
+    },
+
+    elements: {
+        sidebar: document.getElementById('sidebar'),
+        toc: document.getElementById('toc'),
+        tocTitle: document.getElementById('toc-title'),
+        endQuizBtn: document.getElementById('end-quiz-btn'),
+        exitTeacherModeBtn: document.getElementById('exit-teacher-mode-btn'),
+        modeIndicator: document.getElementById('mode-indicator'),
+        currentTopicTitle: document.getElementById('current-topic-title'),
+        questionArea: document.getElementById('question-area'),
+        questionText: document.getElementById('question-text'),
+        optionsGrid: document.getElementById('options-grid'),
+        descriptiveArea: document.getElementById('descriptive-area'), // 記述式エリア
+        descriptiveInput: document.getElementById('descriptive-input'), // 記述式テキストエリア
+        checkAnswerBtn: document.getElementById('check-answer-btn'),
+        explanationArea: document.getElementById('explanation-area'),
+        resultTitle: document.getElementById('result-title'),
+        correctAnswerText: document.getElementById('correct-answer-text'),
+        explanationText: document.getElementById('explanation-text'),
+        understandingButtons: document.getElementById('understanding-buttons'),
+        teacherNextButtons: document.getElementById('teacher-next-buttons'),
+        modalOverlay: document.getElementById('modal-overlay'),
+        startModal: document.getElementById('start-modal'),
+        reportModal: document.getElementById('report-modal'),
+        startBtn: document.getElementById('start-btn'),
+        teacherModeBtn: document.getElementById('teacher-mode-btn'), 
+        loadProgressInput: document.getElementById('load-progress-input'),
+        loadReportInput: document.getElementById('load-report-input'),
+        saveProgressBtn: document.getElementById('save-progress-btn'),
+        reviewBtn: document.getElementById('review-btn'),
+        restartBtn: document.getElementById('restart-btn'),
+        studentIdInput: document.getElementById('student-id-input'),
+        studentNameInput: document.getElementById('student-name-input'),
+        reportStudentInfo: document.getElementById('report-student-info'),
+        reportContent: document.getElementById('report-content'),
+        reportReviewContent: document.getElementById('report-review-content'),
+        reportTeacherModeInfo: document.getElementById('report-teacher-mode-info'), 
+        reportHistorySection: document.getElementById('report-history-section'),
+    },
+
+    katexOptions: {
+        delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false},
+            {left: '\\(', right: '\\)', display: false},
+            {left: '\\[', right: '\\]', display: true}
+        ],
+        throwOnError: false
+    },
+
+    data: {
+        topics: [
+            "ニューロンと神経活動・シナプス",
+            "視覚と光の受容",
+            "大脳視覚皮質と情報処理",
+            "高次視覚認知と計算論的モデル",
+            "聴覚のメカニズムと音声認知",
+            "記述式問題" // 新しい単元を追加
+        ],
+        questions: [
+            // ===== トピック0: ニューロンと神経活動・シナプス =====
+            { id: 1, topicIndex: 0, group: 't0-1', type: 'choice', question: "ブロードマン脳地図（Brodmann area）は、大脳皮質のどのような特徴に基づいて領域を定義しているか。", options: ["神経伝達物質の分布", "細胞構築（解剖学的構造）", "血流変化（fMRI）", "脳波の周波数特性"], answer: 1, explanation: "ブロードマン脳地図は、コルビニアン・ブロードマンによって作成された、大脳皮質の「細胞構築」に基づく脳地図です。機能的な違いは後年の研究で裏付けられました。" },
+            { id: 2, topicIndex: 0, group: 't0-2', type: 'choice', question: "ワイルダー・ペンフィールドのホムンクルス（Homunculus）マップにおいて、大脳皮質の運動野・体性感覚野で極めて広い領域を占めている身体部位はどれか。", options: ["体幹と大腿部", "手指や顔面（唇や舌）", "足首と足の指", "前腕と上腕"], answer: 1, explanation: "ペンフィールドのマップでは、精緻な運動や感覚を要求される「手指」や「顔面（特に唇や舌）」の領域が極めて大きく占有されています。" },
+            { id: 3, topicIndex: 0, group: 't0-3', type: 'choice', question: "19世紀後半に神経系の基本構造について議論された際、「網状説」を提唱した研究者は誰か。", options: ["カミッロ・ゴルジ", "サンティアゴ・ラモン・イ・カハール", "チャールズ・シェリントン", "ヤン・エヴァンゲリスタ・プルキニェ"], answer: 0, explanation: "カミッロ・ゴルジは神経系が連続した網目のようになっているとする「網状説」を提唱しました。一方、独立した細胞のネットワークとする「ニューロン説」はカハールによって提唱されました。" },
+            { id: 4, topicIndex: 0, group: 't0-4', type: 'choice', question: "有髄神経における「跳躍伝導」の利点として正しいものはどれか。", options: ["無髄神経と比較して伝導速度が速くなる", "活動電位の振幅が大きくなる", "神経伝達物質の放出量が増加する", "逆方向への信号伝達が可能になる"], answer: 0, explanation: "跳躍伝導は、絶縁性の「髄鞘」と間隙の「ランビエ絞輪」によって生じる効率的な伝導方式であり、無髄神経と比較して伝導速度が飛躍的に速くなります。" },
+            { id: 5, topicIndex: 0, group: 't0-5', type: 'choice', question: "ニューロンの「脱分極（興奮）」を引き起こす主なイオンの動きはどれか。", options: ["カリウムイオン（K+）の細胞内流入", "ナトリウムイオン（Na+）の細胞内流入", "塩化物イオン（Cl-）の細胞内流入", "カルシウムイオン（Ca2+）の細胞外流出"], answer: 1, explanation: "細胞外に高濃度で存在するナトリウムイオン（Na+）が細胞内へ流入することで、膜電位が正方向に変化（脱分極）し、細胞が興奮状態になります。" },
+            { id: 6, topicIndex: 0, group: 't0-6', type: 'choice', question: "ホジキン・ハクスレー型モデルにおいて、活動電位の発生を記述するための基礎方程式はニューロン膜を何に見立てているか。", options: ["振り子", "等価回路", "流体パイプ", "弾性バネ"], answer: 1, explanation: "ホジキン・ハクスレー型モデルは、ヤリイカの巨大軸索における細胞膜を、電気容量やコンダクタンスを含む「等価回路」としてモデル化したものです。" },
+            { id: 7, topicIndex: 0, group: 't0-7', type: 'choice', question: "シナプスにおいて、連続した入力に対して電位が積み重なる「時間的加重」を引き起こしやすい、チャネルの開口時間が長い受容体はどれか。", options: ["AMPA受容体", "NMDA受容体", "GABA受容体", "ニコチン性アセチルコリン受容体"], answer: 1, explanation: "NMDA受容体はチャネルが開いている時間が長く、連続した入力の電位が積み重なる「時間的加重」を引き起こす特性があります。一方AMPA受容体は短く鋭い電位を発生させます。" },
+            { id: 8, topicIndex: 0, group: 't0-8', type: 'choice', question: "脳の主な「抑制性受容体」であり、ニューロンの発火を抑える役割を担うものはどれか。", options: ["AMPA受容体", "NMDA受容体", "GABA受容体", "ドパミンD1受容体"], answer: 2, explanation: "GABA（γ-アミノ酪酸）受容体は主な抑制性受容体であり、塩化物イオン（Cl-）などを流入させて膜電位を過分極させ、ニューロンの発火を抑えます。" },
+            { id: 9, topicIndex: 0, group: 't0-9', type: 'choice', question: "ニューロン説を提唱し、ゴルジ染色を用いて詳細なスケッチを残したことで知られる研究者は誰か。", options: ["カミッロ・ゴルジ", "ワイルダー・ペンフィールド", "サンティアゴ・ラモン・イ・カハール", "コルビニアン・ブロードマン"], answer: 2, explanation: "サンティアゴ・ラモン・イ・カハールは、ゴルジが開発した染色法を用いて神経組織を詳細に観察し、個々の細胞が独立しているとするニューロン説を提唱しました。" },
+            { id: 10, topicIndex: 0, group: 't0-10', type: 'choice', question: "神経活動をシミュレーションし、ミクロな法則（イオンチャネルの振る舞い等）からマクロなネットワーク特性を導き出すアプローチを何と呼ぶか。", options: ["全体論的アプローチ", "還元論的アプローチ", "行動論的アプローチ", "構成論的アプローチ"], answer: 1, explanation: "複雑な現象を基本的な構成要素（この場合はイオンチャネルや単一ニューロンの電気特性）に分解し、そこから全体の性質を説明しようとする科学的手法を「還元論的アプローチ」と呼びます。" },
+
+            // ===== トピック1: 視覚と光の受容 =====
+            { id: 11, topicIndex: 1, group: 't1-1', type: 'choice', question: "光が「波」の性質を持つことを1805年に示した代表的な実験はどれか。", options: ["ニュートンのプリズム実験", "アインシュタインの光電効果実験", "ヤングの二重スリット実験", "マイケルソン・モーリーの実験"], answer: 2, explanation: "トマス・ヤングによる二重スリット実験は、光の干渉縞を観測することで、光が波動性を持つことを決定的に示しました。" },
+            { id: 12, topicIndex: 1, group: 't1-2', type: 'choice', question: "眼球の構造をカメラに例えた場合、「網膜」に相当するカメラの部品はどれか。", options: ["レンズ", "絞り", "暗箱", "フィルム（イメージセンサー）"], answer: 3, explanation: "網膜は光を受容し電気信号に変換する役割を持つため、カメラにおけるフィルムやデジカメのイメージセンサーに相当します。角膜と水晶体がレンズ、虹彩が絞りです。" },
+            { id: 13, topicIndex: 1, group: 't1-3', type: 'choice', question: "網膜にある視細胞のうち、「暗所で機能し、色は識別できないが感度が高い」細胞はどれか。", options: ["錐体細胞（Cone cell）", "桿体細胞（Rod cell）", "双極細胞（Bipolar cell）", "神経節細胞（Ganglion cell）"], answer: 1, explanation: "桿体細胞（Rod cell）はロドプシンという視物質を持ち、弱い光に反応するため暗所視に関与しますが、波長の違い（色）を識別することはできません。" },
+            { id: 14, topicIndex: 1, group: 't1-4', type: 'choice', question: "人間の色覚異常の多くは、網膜のどの細胞の機能欠損や異常によって生じるか。", options: ["桿体細胞", "水平細胞", "M型・L型の錐体細胞", "S型の錐体細胞"], answer: 2, explanation: "色覚異常は、明所で色を識別する錐体細胞のうち、特に赤や緑の波長に感度を持つM型・L型錐体細胞の機能欠損や異常によって生じます。" },
+            { id: 15, topicIndex: 1, group: 't1-5', type: 'choice', question: "網膜内の情報処理において、コントラスト（明暗の境界）を強調する役割を持つ「側方抑制」に関与する主な細胞はどれか。", options: ["錐体細胞", "桿体細胞", "神経節細胞", "水平細胞・アマクリン細胞"], answer: 3, explanation: "水平細胞やアマクリン細胞は、網膜内で横方向の相互作用を行い、隣接する経路間に抑制的な信号（側方抑制）を送ることで、視覚のコントラストを強調します。" },
+            { id: 16, topicIndex: 1, group: 't1-6', type: 'choice', question: "「ON中心OFF周辺型」の受容野を持つ神経節細胞は、どのような光刺激に対して最も強く発火（興奮）するか。", options: ["受容野全体に均一な光が当たったとき", "中心部に明るい光が当たり、周辺部が暗いとき", "周辺部に明るい光が当たり、中心部が暗いとき", "受容野全体が完全に暗闇になったとき"], answer: 1, explanation: "ON中心OFF周辺型の細胞は、その受容野の中心に光（ON）が当たり、かつ周辺には光が当たらない（抑制されない）状態で最も強く発火します。" },
+            { id: 17, topicIndex: 1, group: 't1-7', type: 'choice', question: "錐体細胞（Cone cell）が主に持つ色素タンパク質（視物質）はどれか。", options: ["ロドプシン", "メラノプシン", "フォトプシン", "ヘモグロビン"], answer: 2, explanation: "錐体細胞の視物質は「フォトプシン」です。一方、桿体細胞の視物質は「ロドプシン」です。" },
+            { id: 18, topicIndex: 1, group: 't1-8', type: 'choice', question: "光の色（可視光線）は何という物理学的な性質によって決定されるか。", options: ["光の振幅", "光の速度", "光の波長", "光の偏光"], answer: 2, explanation: "可視光線の色は「波長」によって決まります。紫（短い波長）から赤（長い波長）までのスペクトルが存在します。" },
+            { id: 19, topicIndex: 1, group: 't1-9', type: 'choice', question: "網膜において、視細胞が最も密集し、視力が最も鋭敏な領域を何と呼ぶか。", options: ["視神経乳頭（盲点）", "中心窩（黄斑）", "角膜", "水晶体"], answer: 1, explanation: "中心窩（黄斑部）は錐体細胞が極めて高密度に集まっており、人間の視覚において最も解像度（視力）が高い領域です。" },
+            { id: 20, topicIndex: 1, group: 't1-10', type: 'choice', question: "西田幾多郎や夏目漱石の言葉を借りて指摘される、視覚メカニズムの「還元論的理解」の限界とは何か。", options: ["神経細胞の数を正確に数えることができない点", "個人の情意や主観的な「色彩の経験」を完全には説明しきれない点", "波長という物理量が測定不可能である点", "脳の消費エネルギーを計算できない点"], answer: 1, explanation: "還元論は物理的な要素（波長や発火）に分解して客観性を高めますが、私たちが実際に経験する主観的な「意味のある世界」や「感情を伴う色彩認識」を完全に説明することはできないと指摘されています。" },
+
+            // ===== トピック2: 大脳視覚皮質と情報処理 =====
+            { id: 21, topicIndex: 2, group: 't2-1', type: 'choice', question: "網膜から出力された視覚情報は、大脳皮質の一次視覚野（V1）に到達する前に、視床のどの神経核を中継するか。", options: ["下丘", "外側膝状体（LGN）", "内側膝状体（MGN）", "扁桃体"], answer: 1, explanation: "視覚情報は網膜の神経節細胞から視神経を経て、視床の「外側膝状体（LGN）」へ入力され、そこで中継されて大脳の一次視覚野（V1）へと送られます。" },
+            { id: 22, topicIndex: 2, group: 't2-2', type: 'choice', question: "一次視覚野（V1）のニューロンが持つ、特定の「線の傾き」に対して強く応答する特性を何と呼ぶか。", options: ["方位選択性", "波長選択性", "速度選択性", "両眼視差選択性"], answer: 0, explanation: "V1のニューロンは、受容野内に入った線やエッジの特定の傾きに対して発火頻度を上昇させます。これを「方位選択性」と呼びます。" },
+            { id: 23, topicIndex: 2, group: 't2-3', type: 'choice', question: "V1の「単純細胞（Simple Cell）」の受容野の構造的特徴として正しいものはどれか。", options: ["受容野内のどこに光が当たっても同じように反応する", "中心が円形で、その周囲をドーナツ状の抑制領域が囲んでいる", "「明反応領域」と「暗反応領域」が直線状に明確に分離して並んでいる", "特定の運動方向（動く光）に対してのみ反応する"], answer: 2, explanation: "単純細胞の受容野は、明領域（ON）と暗領域（OFF）が空間的に明確に分離して配置されているため、光刺激の位置ずれに対して非常にシビアです。" },
+            { id: 24, topicIndex: 2, group: 't2-4', type: 'choice', question: "V1の「複雑細胞（Complex Cell）」が単純細胞と異なる重要な特性は何か。", options: ["色のみに応答する", "刺激の位置がずれても、受容野内であれば応答する（位置不変性）", "音刺激に対しても発火する", "方位選択性を持たない"], answer: 1, explanation: "複雑細胞は特定の「方位」には選択性を持ちますが、受容野内であれば明暗の領域が固定されておらず、刺激の位置が多少変化しても応答を維持する「位置不変性」を持ちます。" },
+            { id: 25, topicIndex: 2, group: 't2-5', type: 'choice', question: "大脳皮質の高次視覚野の中で、特に「物体の動く方向や速度（視覚的運動）」の処理に特化している領域はどれか。", options: ["V1野", "V2野", "V4野", "MT野（V5領域）"], answer: 3, explanation: "MT野（中側頭野）は運動視に関わる領域であり、方向選択性を持つニューロンが多く存在します。" },
+            { id: 26, topicIndex: 2, group: 't2-6', type: 'choice', question: "視覚野のニューロンが空間周波数を処理していることを数学的に説明する際によく用いられる、波動の重ね合わせの理論はどれか。", options: ["ガロア理論", "フーリエ解析", "トポロジー", "カオス理論"], answer: 1, explanation: "どんなに複雑な波も単純な三角関数の重ね合わせで表現できるという「フーリエ解析」は、視覚野が画像を異なる空間周波数成分に分解して処理しているという現象を説明するのに適しています。" },
+            { id: 27, topicIndex: 2, group: 't2-7', type: 'choice', question: "単純細胞などの時空間受容野の応答特性を数理的にモデル化する際、正弦波とガウス関数を掛け合わせたどのような関数がよく用いられるか。", options: ["シグモイド関数", "ガボール関数", "ポアソン分布関数", "双曲線関数"], answer: 1, explanation: "哺乳類の一次視覚野の単純細胞の受容野プロファイルは、「ガボール関数（Gabor function）」によって非常に高い精度で数理的に記述できることが知られています。" },
+            { id: 28, topicIndex: 2, group: 't2-8', type: 'choice', question: "計算論的・視覚・脳理工学において、構築した数理モデルの妥当性を評価する「3つの観点」に含まれないものはどれか。", options: ["記述精度・一般性（現実の活動データをどれだけ捉えているか）", "理論的意味（どのような最適化問題を解いているか）", "倫理的妥当性（被験者に苦痛を与えていないか）", "工学的有効性（実際の画像処理技術として応用できるか）"], answer: 2, explanation: "資料に挙げられている評価の三原則は「記述精度・一般性」「理論的意味」「工学的有効性」です。倫理的妥当性は研究の前提ですが、数理モデル自体の評価軸ではありません。" },
+            { id: 29, topicIndex: 2, group: 't2-9', type: 'choice', question: "コルビニアン・ブロードマンの脳地図において、一次視覚野（V1）は何野として定義されているか。", options: ["4野", "17野", "22野", "44野"], answer: 1, explanation: "ブロードマン脳地図において、一次視覚野は後頭葉の「17野」に定義されています。ちなみに4野は一次運動野です。" },
+            { id: 30, topicIndex: 2, group: 't2-10', type: 'choice', question: "HubelとWieselの階層説において、「複雑細胞」の受容野はどのように形成されると考えられているか。", options: ["単一の網膜神経節細胞からの直接入力", "複数のLGN細胞からの入力の線形和", "複数の「単純細胞」からの入力を統合すること", "聴覚野からのトップダウン入力"], answer: 2, explanation: "階層説モデルでは、LGN細胞の出力を統合して「単純細胞」の受容野が形成され、さらに複数の単純細胞の出力を統合することで、位置不変性を持つ「複雑細胞」が形成されると説明されています。" },
+
+            // ===== トピック3: 高次視覚認知と計算論的モデル =====
+            { id: 31, topicIndex: 3, group: 't3-1', type: 'choice', question: "大脳皮質の表面から深層に向かって、同じ「最適方位」を持つ細胞が垂直に柱状に並んでいる構造を何と呼ぶか。", options: ["網様体", "方位コラム", "小脳皮質", "海馬体"], answer: 1, explanation: "大脳皮質の一次視覚野に見られる、同じ最適方位（傾き）に応答する細胞群が皮質表面から深部へ垂直に並ぶ構造を「方位コラム」と呼びます。" },
+            { id: 32, topicIndex: 3, group: 't3-2', type: 'choice', question: "「眼優位コラム」とはどのような構造か。", options: ["明るい光に反応する細胞と暗い光に反応する細胞の交互配列", "赤色に反応する細胞と緑色に反応する細胞の集まり", "右眼からの入力に強く反応する領域と左眼からの入力に強く反応する領域の交互の縞模様", "静止画に反応する細胞と動画に反応する細胞の層構造"], answer: 2, explanation: "眼優位コラム（Ocular Dominance Column）は、V1において、右眼からの入力優位の細胞群と左眼からの入力優位の細胞群が交互に縞模様のように並ぶ構造です。" },
+            { id: 33, topicIndex: 3, group: 't3-3', type: 'choice', question: "同じ長さの2本の線分に、向きの異なる矢羽をつけることで長さが違って見える代表的な「幾何学的錯視」を何というか。", options: ["エビングハウス錯視", "ポンゾ錯視", "ミュラー・リヤー錯視", "ルビンの壺"], answer: 2, explanation: "両端に内向き（＞-＜）または外向き（＜-＞）の矢羽をつけることで線の長さが異なって知覚される現象を「ミュラー・リヤー錯視」と呼びます。" },
+            { id: 34, topicIndex: 3, group: 't3-4', type: 'choice', question: "錯視現象が示唆する、脳の視覚処理の特徴として最も適切な記述はどれか。", options: ["脳は網膜の画像を画素ごとに正確に記録するカメラと完全に同じである。", "脳は物理的な情報を還元的に処理するだけでなく、周辺情報を含めて「全体論的」に解釈・補完している。", "脳は視覚情報を処理する際に必ず計算エラーを起こすため、客観的現実は認識できない。", "高次視覚野は物理量の影響を全く受けない。"], answer: 1, explanation: "客観的物理量と主観的知覚が乖離する錯視現象は、脳が画像を単なる画素の集合（還元論）としてではなく、文脈や全体の関係性から「意味のある画像（全体論）」として再構築していることを示しています。" },
+            { id: 35, topicIndex: 3, group: 't3-5', type: 'choice', question: "1979年に福島邦彦によって提唱され、現代のディープラーニング（CNN）の直接的な起源とされるニューラルネットワークモデルは何か。", options: ["パーセプトロン", "ホップフィールド・ネットワーク", "ネオコグニトロン", "ボルツマンマシン"], answer: 2, explanation: "ネオコグニトロン（Neocognitron）は、視覚野の階層構造（単純細胞と複雑細胞）を模倣し、パターン認識を実現した画期的なモデルであり、CNNの起源とされています。" },
+            { id: 36, topicIndex: 3, group: 't3-6', type: 'choice', question: "ネオコグニトロンにおいて、視覚野の「複雑細胞」の役割（位置ズレを許容する）を模倣している層はどれか。", options: ["S細胞層（S-cell layer）", "C細胞層（C-cell layer）", "出力層", "入力層"], answer: 1, explanation: "ネオコグニトロンでは、局所的特徴を抽出するS細胞（単純細胞に対応）と、その入力を統合して位置不変性を持たせるC細胞（複雑細胞に対応）が交互に階層を成しています。" },
+            { id: 37, topicIndex: 3, group: 't3-7', type: 'choice', question: "階層的特徴抽出における「位置不変性」の獲得とは、パターン認識においてどのようなメリットをもたらすか。", options: ["対象物の色が変化しても認識できる", "対象物が画像内のどこに移動しても、または多少変形しても同一の物体として認識できる", "対象物が完全に隠れても存在を推測できる", "画像の解像度が無限に高くなる"], answer: 1, explanation: "複雑細胞やC細胞層による「位置不変性（空間的ズレの許容）」は、手書き文字の崩れや、物体が視界内でシフトしても正しく認識するための強靭性（ロバスト性）を生み出します。" },
+            { id: 38, topicIndex: 3, group: 't3-8', type: 'choice', question: "視覚野における「空間周波数選択性」とは何か。", options: ["音の高さに対する選択性", "模様の「細かさ（縞の間隔など）」に対する最適な反応特性", "光の波長（色）に対する反応", "物体の移動速度に対する反応"], answer: 1, explanation: "空間周波数選択性とは、ニューロンがそれぞれ特定の模様の細かさ（空間的な周波数）に対して最も強く発火する性質のことです。" },
+            { id: 39, topicIndex: 3, group: 't3-9', type: 'choice', question: "人工知能の発展において、脳の視覚メカニズムの模倣が大きく貢献した分野はどれか。", options: ["自然言語処理", "画像認識（パターン認識）", "音声合成", "強化学習によるチェス対局"], answer: 1, explanation: "V1の階層的な特徴抽出（Hubel & Wieselの研究）はネオコグニトロンやCNNへ発展し、特に「画像認識・パターン認識」の分野に革命をもたらしました。" },
+            { id: 40, topicIndex: 3, group: 't3-10', type: 'choice', question: "視覚の物理的入力を「波としての画像」、脳での知覚を「意味のある画像」と表現した場合、ネオコグニトロンの目的はどちらを機械に実現させることか。", options: ["入力された光の波長を正確に測定すること", "波としての画像から「意味のある画像（文字や物体の認識）」を抽出すること", "カメラのレンズの歪みを物理的に補正すること", "錯視を意図的に引き起こす画像を作ること"], answer: 1, explanation: "ネオコグニトロンやCNNの目的は、単なるピクセルデータの配列（波・物理情報）から、段階的な特徴抽出を通じて「それが何の文字・物体であるか（意味）」を認識することです。" },
+
+            // ===== トピック4: 聴覚のメカニズムと音声認知 =====
+            { id: 41, topicIndex: 4, group: 't4-1', type: 'choice', question: "音波の物理的特性において、「音の高さ（ピッチ）」を決定する要素はどれか。", options: ["振幅", "周波数（振動数）", "位相", "音速"], answer: 1, explanation: "音の高さは波の「周波数（Hz）」によって決まります。一方、音の強さ（大きさ）は「振幅」に対応します。" },
+            { id: 42, topicIndex: 4, group: 't4-2', type: 'choice', question: "長さ $l$ の閉管における固有振動数 $f$ を表す式はどれか。（$V$ は音速、$n$ は自然数とする）", options: ["$f = \\frac{nV}{2l}$", "$f = \\frac{(2n-1)V}{4l}$", "$f = \\frac{V}{nl}$", "$f = 2lV$"], answer: 1, explanation: "閉管（片方が閉じている管）の固有振動数は、波長が $4l / (2n-1)$ となることから、周波数 $f = \\frac{(2n-1)V}{4l}$ と表されます。" },
+            { id: 43, topicIndex: 4, group: 't4-3', type: 'choice', question: "中耳にある耳小骨の主要な物理的役割である「インピーダンス整合」とは何か。", options: ["音の周波数を高い音に変換する", "空気中の微弱な振動を増幅し、液体の詰まった内耳へエネルギー損失を防ぎつつ効率的に伝達する", "大きな音が来たときに鼓膜を破る", "音波を電気信号に変換する"], answer: 1, explanation: "空気と液体の境界では音波が反射されやすいため、耳小骨のてこの原理と鼓膜と卵円窓の面積比を利用して振動の圧力を増幅し、内耳へ効率よく伝達（インピーダンス整合）します。" },
+            { id: 44, topicIndex: 4, group: 't4-4', type: 'choice', question: "内耳の蝸牛（Cochlea）において、基底膜が音の「周波数」に応じて振動する位置が異なる仕組みを何と呼ぶか。", options: ["側方抑制", "トノトピー（周波数局在性）", "ミッシングファンダメンタル", "位相固定"], answer: 1, explanation: "蝸牛の基底膜は入口（基部）が硬く高音に共振し、奥（頂部）が柔らかく低音に共振します。このように周波数ごとに場所が分かれる構造を「トノトピー」と呼びます。" },
+            { id: 45, topicIndex: 4, group: 't4-5', type: 'choice', question: "蝸牛内の有毛細胞において、聴毛（不動毛）が傾くことで機械的に開くイオンチャネルは何か。", options: ["電位依存性ナトリウムチャネル", "NMDA受容体チャネル", "METチャネル（機械受容チャネル）", "漏洩カリウムチャネル"], answer: 2, explanation: "不動毛の先端がティップリンクで引っぱられることにより、非選択的陽イオンチャネルであるMETチャネルが物理的（機械的）に開き、イオンが流入して電気信号が発生します。" },
+            { id: 46, topicIndex: 4, group: 't4-6', type: 'choice', question: "音源定位において、高周波数帯域の音の位置を特定するために脳が主に利用する手がかりは何か。", options: ["両耳間時差（ITD）", "両耳間音圧差（ILD）", "ドップラー効果", "視覚情報のみ"], answer: 1, explanation: "波長が短く頭部による遮蔽（音響陰影）が起きやすい高周波数帯域では、左右の耳に届く音量の差「両耳間音圧差（ILD）」が音源定位に利用されます。" },
+            { id: 47, topicIndex: 4, group: 't4-7', type: 'choice', question: "低周波数の音源定位に用いられる「両耳間時差（ITD）」の計算に深く関与する脳幹の部位はどこか。", options: ["内側上オリーブ核（MSO）", "大脳基底核", "一次視覚野", "小脳"], answer: 0, explanation: "両耳間時差（ITD）は、内側上オリーブ核（MSO）の細胞において、左右の耳から入力される信号の到達タイミングの「同時性（時間的重なり）」を検出することで計算されます。" },
+            { id: 48, topicIndex: 4, group: 't4-8', type: 'choice', question: "複合音から基本周波数成分を物理的に取り除いても、人間がその基本周波数の高さを知覚してしまう現象を何というか。", options: ["ミッシングファンダメンタル現象", "カクテルパーティー効果", "マスキング効果", "マガーク効果"], answer: 0, explanation: "倍音成分（400Hz, 600Hz...）だけを提示しても、存在しない基音（200Hz）のピッチを知覚する現象を「ミッシングファンダメンタル現象」と呼びます。" },
+            { id: 49, topicIndex: 4, group: 't4-9', type: 'choice', question: "自分が発声している際、一次聴覚野の細胞は自己音声に対する応答を抑圧する。しかし、フィードバックされた音声のピッチを意図的にずらすと神経活動が上昇する。これは脳が何を検出したためか。", options: ["音量の低下", "予測誤差（内的モデルとのズレ）", "音源の移動", "聴覚疲労"], answer: 1, explanation: "脳は運動指令と共に自己音声の感覚フィードバックを予測しています。実際の音声が予測と異なると「予測誤差」が生じ、これを修正・学習するために聴覚野の活動が上昇します。" },
+            { id: 50, topicIndex: 4, group: 't4-10', type: 'choice', question: "曖昧な音声であっても、我々が意味のある言葉として理解できるのは、脳内でどのような処理が働いているからか。", options: ["物理的音圧の無意識的な増幅", "学習や経験、文脈による「トップダウン処理（概念駆動型処理）」", "両耳間時差のみを用いたボトムアップ処理", "網膜からの視覚信号による完全な置き換え"], answer: 1, explanation: "単なる物理量の分析（ボトムアップ）だけではなく、事前の知識や文脈から予測する「トップダウン処理」が作用することで、我々は音の羅列を「意味のある音声・言語」として認知できます。" },
+            
+            // ===== トピック5: 記述式問題 =====
+            { id: 51, topicIndex: 5, group: 'desc-1', type: 'descriptive', question: "【B. 説明する力を問う】<br>1. ヒトがカラーで知覚できる理由を説明せよ。" },
+            { id: 52, topicIndex: 5, group: 'desc-2', type: 'descriptive', question: "【B. 説明する力を問う】<br>2. 半側空間無視とは何かを説明した上で、「左大脳半球の損傷での右側の半側空間無視は非常に稀である」ということから何が考えられるのかを記述せよ。" },
+            { id: 53, topicIndex: 5, group: 'desc-3', type: 'descriptive', question: "【C. 考察する力を問う】<br>ニューロンの構造から視覚の機能までについての知識を用いて、視覚についての脳のメカニズム(どのようにして脳は見ることを実現しているのか)についてあなたの考えを説明せよ。" }
+        ]
+    },
+
+    init() {
+        this.elements.startBtn.addEventListener('click', () => this.startQuiz());
+        this.elements.teacherModeBtn.addEventListener('click', () => this.startTeacherMode());
+        this.elements.checkAnswerBtn.addEventListener('click', () => this.checkAnswer());
+        this.elements.endQuizBtn.addEventListener('click', () => this.generateReport());
+        this.elements.exitTeacherModeBtn.addEventListener('click', () => this.returnToStart());
+        this.elements.loadProgressInput.addEventListener('change', (e) => this.loadProgress(e));
+        this.elements.loadReportInput.addEventListener('change', (e) => this.loadReport(e));
+        this.elements.saveProgressBtn.addEventListener('click', () => {
+            this.saveProgress();
+            this.returnToStart();
+        });
+        this.elements.reviewBtn.addEventListener('click', () => this.startReview());
+        this.elements.restartBtn.addEventListener('click', () => {
+            this.elements.modalOverlay.style.display = 'none';
+        });
+
+        this.renderTOC();
+    },
+
+    startQuiz(isLoaded = false) {
+        this.state.isTeacherMode = false;
+        if (!isLoaded) {
+            this.state.studentId = this.elements.studentIdInput.value;
+            this.state.studentName = this.elements.studentNameInput.value;
+            if (!this.state.studentId || !this.state.studentName) {
+                alert('学籍番号と名前を入力してください。');
+                return;
+            }
+            this.state.startedAt = new Date().toISOString();
+            this.state.resumedHistory = [];
+            this.state.reviewHistory = [];
+            this.state.wrongQuestionIds = new Set();
+            this.state.choiceAnswers = {}; // 初期化
+            this.state.descriptiveAnswers = {};
+            this.state.currentTopicIndex = 0;
+            this.state.usedQuestionIds.clear();
+            this.initializeReportData();
+        }
+        this.elements.modalOverlay.style.display = 'none';
+        this.updateUIVisibility();
+        this.loadTopic(this.state.currentTopicIndex);
+    },
+
+    startTeacherMode() {
+        this.state.isTeacherMode = true;
+        this.state.teacherModeHistory.push(new Date().toISOString()); 
+        this.elements.modalOverlay.style.display = 'none';
+        this.updateUIVisibility();
+        this.renderTOC();
+        this.jumpToQuestion(1);
+    },
+    
+    jumpToQuestion(questionId) {
+        const q = this.data.questions.find(q => q.id === questionId);
+        if (q) {
+            this.state.currentQuestion = q;
+            this.state.currentTopicIndex = q.topicIndex;
+            
+            this.elements.modalOverlay.style.display = 'none';
+            this.state.selectedAnswerIndex = null;
+            this.displayQuestion();
+        }
+    },
+    
+    jumpToNextQuestion() {
+        const currentIndex = this.data.questions.findIndex(q => q.id === this.state.currentQuestion.id);
+        const nextIndex = (currentIndex + 1) % this.data.questions.length;
+        const nextQuestionId = this.data.questions[nextIndex].id;
+        this.jumpToQuestion(nextQuestionId);
+    },
+
+    updateUIVisibility() {
+        if (this.state.isTeacherMode) {
+            this.elements.modeIndicator.textContent = '先生モード';
+            this.elements.endQuizBtn.style.display = 'none';
+            this.elements.exitTeacherModeBtn.style.display = 'block';
+            this.elements.understandingButtons.style.display = 'none';
+            this.elements.teacherNextButtons.style.display = 'block';
+            this.elements.tocTitle.textContent = '問題一覧';
+        } else {
+            this.elements.modeIndicator.textContent = '';
+            this.elements.endQuizBtn.style.display = 'block';
+            this.elements.exitTeacherModeBtn.style.display = 'none';
+            this.elements.understandingButtons.style.display = 'block';
+            this.elements.teacherNextButtons.style.display = 'none';
+            this.elements.tocTitle.textContent = '目次';
+        }
+    },
+
+    saveProgress() {
+        this.state.saveHistory.push(new Date().toISOString()); 
+        const saveData = {
+            studentId: this.state.studentId,
+            studentName: this.state.studentName,
+            startedAt: this.state.startedAt,
+            resumedHistory: this.state.resumedHistory,
+            reviewHistory: this.state.reviewHistory,
+            savedAt: new Date().toISOString(),
+            currentTopicIndex: this.state.currentTopicIndex,
+            currentGroupIndex: this.state.currentGroupIndex,
+            topicGroups: this.state.topicGroups,
+            usedQuestionIds: Array.from(this.state.usedQuestionIds),
+            wrongQuestionIds: Array.from(this.state.wrongQuestionIds),
+            choiceAnswers: this.state.choiceAnswers, // ★選択したすべての回答を記録
+            descriptiveAnswers: this.state.descriptiveAnswers,
+            reportData: this.state.reportData,
+            teacherModeHistory: this.state.teacherModeHistory, 
+            saveHistory: this.state.saveHistory,
+        };
+        const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const studentId = this.state.studentId || 'id';
+        const studentName = this.state.studentName || 'name';
+        const date = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `${studentId}_${studentName}_cognitive-neuroscience_${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+
+    loadProgress(event) {
+        this.loadAndProcessFile(event, true);
+    },
+
+    loadReport(event) {
+        this.loadAndProcessFile(event, false);
+    },
+
+    loadAndProcessFile(event, startQuizAfterLoad) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const loadedData = JSON.parse(e.target.result);
+                if (loadedData.reportData && loadedData.usedQuestionIds && loadedData.studentId) {
+                    this.state.studentId = loadedData.studentId;
+                    this.state.studentName = loadedData.studentName;
+                    this.state.startedAt = loadedData.startedAt || new Date().toISOString();
+                    this.state.resumedHistory = loadedData.resumedHistory || [];
+                    this.state.reviewHistory = loadedData.reviewHistory || [];
+                    this.state.currentTopicIndex = loadedData.currentTopicIndex;
+                    this.state.currentGroupIndex = loadedData.currentGroupIndex;
+                    this.state.topicGroups = loadedData.topicGroups;
+                    this.state.usedQuestionIds = new Set(loadedData.usedQuestionIds);
+                    this.state.wrongQuestionIds = new Set(loadedData.wrongQuestionIds || []);
+                    this.state.choiceAnswers = loadedData.choiceAnswers || {}; // ★選択した回答を復元
+                    this.state.descriptiveAnswers = loadedData.descriptiveAnswers || {};
+                    this.state.reportData = loadedData.reportData;
+                    this.state.teacherModeHistory = loadedData.teacherModeHistory || []; 
+                    this.state.saveHistory = loadedData.saveHistory || []; 
+                    
+                    this.elements.studentIdInput.value = this.state.studentId;
+                    this.elements.studentNameInput.value = this.state.studentName;
+
+                    if (startQuizAfterLoad) {
+                        this.state.resumedHistory.push(new Date().toISOString());
+                        this.startQuiz(true);
+                    } else {
+                        this.generateReport();
+                    }
+                } else {
+                    alert('無効なファイル形式です。');
+                }
+            } catch (error) {
+                alert('ファイルの読み込みに失敗しました。');
+                console.error("Failed to parse progress file:", error);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    },
+
+    initializeReportData() {
+        this.data.topics.forEach(topic => {
+            const topicQuestions = this.data.questions.filter(q => q.topicIndex === this.data.topics.indexOf(topic));
+            const uniqueGroups = [...new Set(topicQuestions.map(q => q.group))];
+            this.state.reportData[topic] = {
+                mistakes: 0,
+                attempts: 0,
+                completedGroups: 0,
+                totalGroups: uniqueGroups.length,
+                understoodCount: 0,
+                notUnderstoodCount: 0,
+                notUnderstoodQuestions: [],
+                reviewAttempts: 0,
+                reviewMistakes: 0,
+                reviewUnderstoodCount: 0,
+                reviewNotUnderstoodCount: 0,
+            };
+        });
+        this.state.saveHistory = []; 
+        this.state.teacherModeHistory = [];
+    },
+
+    loadTopic(topicIndex) {
+        this.state.currentTopicIndex = topicIndex;
+        if (!this.state.topicGroups || this.state.topicGroups.length === 0) {
+            const topicQuestions = this.data.questions.filter(q => q.topicIndex === topicIndex);
+            const uniqueGroups = [...new Set(topicQuestions.map(q => q.group))];
+            this.state.topicGroups = this.shuffleArray(uniqueGroups);
+            this.state.currentGroupIndex = 0;
+        }
+        this.loadQuestion();
+    },
+
+    loadQuestion() {
+        if (this.state.currentGroupIndex >= this.state.topicGroups.length) {
+            this.state.currentTopicIndex++;
+            this.state.topicGroups = []; 
+            if (this.state.currentTopicIndex >= this.data.topics.length) {
+                this.generateReport();
+                return;
+            } else {
+                this.loadTopic(this.state.currentTopicIndex);
+                return;
+            }
+        }
+
+        const groupName = this.state.topicGroups[this.state.currentGroupIndex];
+        
+        const availableQuestions = this.data.questions.filter(q => 
+            q.topicIndex === this.state.currentTopicIndex &&
+            q.group === groupName &&
+            !this.state.usedQuestionIds.has(q.id)
+        );
+
+        if (availableQuestions.length > 0) {
+            this.state.currentQuestion = availableQuestions[0];
+            this.state.usedQuestionIds.add(this.state.currentQuestion.id);
+            this.displayQuestion();
+        } else {
+            this.advance(true);
+        }
+    },
+
+    displayQuestion() {
+        const q = this.state.currentQuestion;
+        this.elements.currentTopicTitle.textContent = this.data.topics[q.topicIndex];
+        this.elements.questionText.innerHTML = q.question;
+
+        if (q.type === 'descriptive') {
+            // 記述式問題の場合
+            this.elements.optionsGrid.style.display = 'none';
+            this.elements.descriptiveArea.style.display = 'block';
+            this.elements.descriptiveInput.value = this.state.descriptiveAnswers[q.id] || '';
+            
+            this.elements.checkAnswerBtn.textContent = '回答を記録して次へ';
+            this.elements.checkAnswerBtn.disabled = false;
+            this.elements.checkAnswerBtn.onclick = () => this.recordDescriptiveAnswer();
+        } else {
+            // 選択式問題の場合
+            this.elements.optionsGrid.style.display = 'grid';
+            this.elements.descriptiveArea.style.display = 'none';
+            this.elements.optionsGrid.innerHTML = '';
+            
+            q.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'option-btn w-full text-left p-3 border-2 border-gray-300 rounded-lg hover:bg-blue-50 flex flex-col items-center justify-center space-y-2';
+                
+                if (typeof option === 'object' && option.svg) {
+                    button.innerHTML = `<span>${option.text}</span>${option.svg}`;
+                } else {
+                    button.innerHTML = `<span>${option}</span>`;
+                }
+
+                button.onclick = () => this.selectAnswer(index);
+                this.elements.optionsGrid.appendChild(button);
+            });
+
+            this.elements.checkAnswerBtn.textContent = '答え合わせ';
+            this.elements.checkAnswerBtn.disabled = true;
+            this.elements.checkAnswerBtn.onclick = () => this.checkAnswer();
+        }
+
+        this.elements.questionArea.style.display = 'block';
+        this.elements.explanationArea.style.display = 'none';
+        
+        this.renderTOC();
+        this.renderKaTeX(this.elements.questionArea);
+    },
+
+    selectAnswer(index) {
+        this.state.selectedAnswerIndex = index;
+        const buttons = this.elements.optionsGrid.querySelectorAll('button');
+        buttons.forEach((btn, i) => {
+            btn.classList.toggle('selected', i === index);
+        });
+        this.elements.checkAnswerBtn.disabled = false;
+    },
+
+    // 記述式問題の回答記録
+    recordDescriptiveAnswer() {
+        const q = this.state.currentQuestion;
+        const answerText = this.elements.descriptiveInput.value;
+        this.state.descriptiveAnswers[q.id] = answerText;
+        
+        if (!this.state.isTeacherMode) {
+            const topicName = this.data.topics[q.topicIndex];
+            this.state.reportData[topicName].attempts++;
+            this.state.reportData[topicName].understoodCount++; // 記述式は回答すれば達成としてカウント
+        }
+        
+        this.advance(true);
+    },
+
+    checkAnswer() {
+        if (this.state.selectedAnswerIndex === null) return;
+        const q = this.state.currentQuestion;
+        const isCorrect = this.state.selectedAnswerIndex === q.answer;
+        this.state.answeredCorrectly = isCorrect;
+
+        // ★ユーザーが選んだ選択肢のインデックスをすべて記録 (新規追加)
+        this.state.choiceAnswers[q.id] = this.state.selectedAnswerIndex;
+
+        // 間違った問題番号の記録
+        if (!isCorrect) {
+            this.state.wrongQuestionIds.add(q.id);
+        }
+
+        if (!this.state.isTeacherMode) {
+            const topicName = this.data.topics[q.topicIndex];
+            if (this.state.isReviewMode) {
+                this.state.reportData[topicName].reviewAttempts++;
+                if (!isCorrect) this.state.reportData[topicName].reviewMistakes++;
+            } else {
+                this.state.reportData[topicName].attempts++;
+                if (!isCorrect) this.state.reportData[topicName].mistakes++;
+            }
+        }
+
+        this.showExplanation();
+    },
+
+    showExplanation() {
+        const q = this.state.currentQuestion;
+        this.elements.questionArea.style.display = 'none';
+        this.elements.explanationArea.style.display = 'block';
+
+        this.elements.resultTitle.textContent = this.state.answeredCorrectly ? '正解！' : '不正解';
+        this.elements.explanationArea.className = this.state.answeredCorrectly 
+            ? 'mt-6 bg-white p-6 md:p-8 rounded-xl shadow-lg border-t-8 border-green-500'
+            : 'mt-6 bg-white p-6 md:p-8 rounded-xl shadow-lg border-t-8 border-red-500';
+        
+        const correctAnswer = q.options[q.answer];
+        if (typeof correctAnswer === 'object' && correctAnswer.svg) {
+            this.elements.correctAnswerText.innerHTML = `<span>${correctAnswer.text}</span>${correctAnswer.svg}`;
+        } else {
+            this.elements.correctAnswerText.innerHTML = `<span>${correctAnswer}</span>`;
+        }
+
+        this.elements.explanationText.innerHTML = q.explanation;
+        
+        this.renderKaTeX(this.elements.explanationArea);
+    },
+
+    handleUnderstanding(understood) {
+        const topicName = this.data.topics[this.state.currentQuestion.topicIndex];
+        const questionId = this.state.currentQuestion.id;
+
+        if (this.state.isReviewMode) {
+            if (understood) {
+                this.state.reportData[topicName].reviewUnderstoodCount++;
+            } else {
+                this.state.reportData[topicName].reviewNotUnderstoodCount++;
+            }
+        } else {
+            const notUnderstoodList = this.state.reportData[topicName].notUnderstoodQuestions;
+            if (understood) {
+                this.state.reportData[topicName].understoodCount++;
+                const index = notUnderstoodList.indexOf(questionId);
+                if (index > -1) notUnderstoodList.splice(index, 1);
+            } else {
+                this.state.reportData[topicName].notUnderstoodCount++;
+                if (!notUnderstoodList.includes(questionId)) {
+                    notUnderstoodList.push(questionId);
+                }
+            }
+        }
+
+        if (this.state.isReviewMode) {
+            this.loadNextReviewQuestion();
+        } else {
+            const success = this.state.answeredCorrectly && understood;
+            this.advance(success);
+        }
+    },
+
+    advance(success) {
+        if (success) {
+            const topicName = this.data.topics[this.state.currentTopicIndex];
+            this.state.reportData[topicName].completedGroups++;
+            this.state.currentGroupIndex++;
+        }
+        
+        this.loadQuestion();
+    },
+
+    startReview() {
+        this.state.isReviewMode = true;
+        this.state.reviewHistory.push(new Date().toISOString()); // 復習開始を記録
+
+        let reviewQueue = [];
+        this.data.topics.forEach(topicName => {
+            const topicData = this.state.reportData[topicName];
+            if (topicData.notUnderstoodQuestions && topicData.notUnderstoodQuestions.length > 0) {
+                reviewQueue = reviewQueue.concat(topicData.notUnderstoodQuestions);
+            }
+        });
+
+        this.state.reviewQueue = this.shuffleArray(reviewQueue);
+        this.elements.modalOverlay.style.display = 'none';
+        this.elements.sidebar.style.display = 'none';
+        this.elements.modeIndicator.textContent = '復習モード';
+        this.loadNextReviewQuestion();
+    },
+
+    loadNextReviewQuestion() {
+        if (this.state.reviewQueue.length === 0) {
+            this.state.isReviewMode = false;
+            this.elements.sidebar.style.display = 'block';
+            this.elements.modeIndicator.textContent = '';
+            alert('復習が完了しました！');
+            this.generateReport();
+            return;
+        }
+
+        const nextQuestionId = this.state.reviewQueue.shift();
+        const nextQuestion = this.data.questions.find(q => q.id === nextQuestionId);
+        this.state.currentQuestion = nextQuestion;
+        this.displayQuestion();
+    },
+
+    generateReport() {
+        this.elements.reportStudentInfo.innerHTML = `
+            <p><strong>学籍番号:</strong> ${this.state.studentId}</p>
+            <p><strong>名前:</strong> ${this.state.studentName}</p>
+        `;
+        let totalNotUnderstoodQuestions = 0;
+        let tableHTML = `<h2 class="text-2xl font-bold text-gray-700 mb-4">学習成果</h2>` + this.generateReportTable(false);
+        this.elements.reportContent.innerHTML = tableHTML;
+        
+        const totalReviewAttempts = Object.values(this.state.reportData).reduce((sum, d) => sum + (d.reviewAttempts || 0), 0);
+        if (totalReviewAttempts > 0) {
+            let reviewTableHTML = `<h2 class="text-2xl font-bold text-gray-700 mt-8 mb-4">復習モードの成果</h2>` + this.generateReportTable(true);
+            this.elements.reportReviewContent.innerHTML = reviewTableHTML;
+        } else {
+            this.elements.reportReviewContent.innerHTML = '';
+        }
+        
+        const teacherInfoDiv = this.elements.reportTeacherModeInfo;
+        if (this.state.teacherModeHistory && this.state.teacherModeHistory.length > 0) {
+            let teacherHTML = `<h2 class="text-2xl font-bold text-gray-700 mt-8 mb-4">先生モード利用履歴</h2>`;
+            teacherHTML += `<p>利用回数: ${this.state.teacherModeHistory.length}回</p>`;
+            teacherHTML += `<ul class="list-disc list-inside">`;
+            this.state.teacherModeHistory.forEach(ts => {
+                teacherHTML += `<li>${new Date(ts).toLocaleString()}</li>`;
+            });
+            teacherHTML += `</ul>`;
+            teacherInfoDiv.innerHTML = teacherHTML;
+        } else {
+            teacherInfoDiv.innerHTML = '';
+        }
+
+        const historySection = this.elements.reportHistorySection;
+        let historyHTML = `<h2 class="text-2xl font-bold text-gray-700 mt-8 mb-4">学習の記録</h2>
+                           <div class="border-l-2 border-sky-200 ml-3 pl-8 space-y-8 relative">`;
+
+        if (this.state.startedAt) {
+            historyHTML += `
+                <div class="relative">
+                    <div class="absolute -left-[42px] top-1 bg-sky-500 rounded-full h-5 w-5 border-4 border-white"></div>
+                    <h3 class="font-bold text-sky-700">学習開始</h3>
+                    <p class="text-gray-600">${new Date(this.state.startedAt).toLocaleString()}</p>
+                </div>`;
+        }
+
+        if (this.state.resumedHistory && this.state.resumedHistory.length > 0) {
+            historyHTML += `
+                <div class="relative">
+                    <div class="absolute -left-[42px] top-1 bg-yellow-500 rounded-full h-5 w-5 border-4 border-white"></div>
+                    <h3 class="font-bold text-yellow-700">再開履歴 (${this.state.resumedHistory.length}回)</h3>
+                    <ul class="list-disc list-inside text-gray-600 mt-1">`;
+            this.state.resumedHistory.forEach(ts => {
+                historyHTML += `<li>${new Date(ts).toLocaleString()}</li>`;
+            });
+            historyHTML += `</ul></div>`;
+        }
+
+        // 学習の記録に復習履歴も反映
+        if (this.state.reviewHistory && this.state.reviewHistory.length > 0) {
+             historyHTML += `
+                <div class="relative">
+                    <div class="absolute -left-[42px] top-1 bg-purple-500 rounded-full h-5 w-5 border-4 border-white"></div>
+                    <h3 class="font-bold text-purple-700">復習実施履歴 (${this.state.reviewHistory.length}回)</h3>
+                    <ul class="list-disc list-inside text-gray-600 mt-1">`;
+            this.state.reviewHistory.forEach(ts => {
+                historyHTML += `<li>${new Date(ts).toLocaleString()}</li>`;
+            });
+            historyHTML += `</ul></div>`;
+        }
+
+        if (this.state.saveHistory && this.state.saveHistory.length > 0) {
+             historyHTML += `
+                <div class="relative">
+                    <div class="absolute -left-[42px] top-1 bg-green-500 rounded-full h-5 w-5 border-4 border-white"></div>
+                    <h3 class="font-bold text-green-700">進捗保存履歴 (${this.state.saveHistory.length}回)</h3>
+                    <ul class="list-disc list-inside text-gray-600 mt-1">`;
+            this.state.saveHistory.forEach(ts => {
+                historyHTML += `<li>${new Date(ts).toLocaleString()}</li>`;
+            });
+            historyHTML += `</ul></div>`;
+        }
+
+        historyHTML += `</div>`;
+        historySection.innerHTML = historyHTML;
+
+        Object.values(this.state.reportData).forEach(data => {
+            if (data.notUnderstoodQuestions) {
+                totalNotUnderstoodQuestions += data.notUnderstoodQuestions.length;
+            }
+        });
+        
+        if (totalNotUnderstoodQuestions > 0) {
+            this.elements.reviewBtn.classList.remove('hidden');
+            this.elements.reviewBtn.textContent = `復習を開始する (${totalNotUnderstoodQuestions}問)`;
+        } else {
+            this.elements.reviewBtn.classList.add('hidden');
+        }
+        
+        this.elements.modalOverlay.style.display = 'flex';
+        this.elements.startModal.style.display = 'none';
+        this.elements.reportModal.classList.remove('hidden', 'scale-95', 'opacity-0');
+        this.elements.reportModal.classList.add('scale-100', 'opacity-100');
+    },
+
+    generateReportTable(isReview) {
+        let totalMistakes = 0, totalCompleted = 0, totalGroups = 0, totalUnderstood = 0, totalNotUnderstood = 0, totalAttempts = 0;
+        const header = isReview ? 
+            ['単元名', '挑戦数', '間違い数', '理解度'] : 
+            ['単元名', '挑戦数', '間違い数', '達成度', '理解度'];
+        
+        let tableHTML = `
+            <table class="w-full text-left border-collapse">
+                <thead><tr class="bg-gray-100">${header.map(h => `<th class="p-3 border-b-2 border-gray-200 font-bold ${h !== '単元名' ? 'text-center' : ''}">${h}</th>`).join('')}</tr></thead>
+                <tbody>`;
+        
+        this.data.topics.forEach(topicName => {
+            const data = this.state.reportData[topicName];
+            
+            // 記述式問題の場合、間違い数などを出さないよう分岐
+            if (topicName === "記述式問題") {
+                if (isReview) return; // 復習対象ではない
+                const attempts = data.attempts || 0;
+                const achievement = data.totalGroups > 0 ? (data.completedGroups / data.totalGroups) * 100 : 0;
+                totalAttempts += attempts;
+                totalCompleted += data.completedGroups;
+                totalGroups += data.totalGroups;
+                tableHTML += `
+                    <tr>
+                        <td class="p-3 border-b border-gray-200">${topicName}</td>
+                        <td class="p-3 border-b border-gray-200 text-center">${attempts}</td>
+                        <td class="p-3 border-b border-gray-200 text-center">-</td>
+                        <td class="p-3 border-b border-gray-200"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: ${achievement.toFixed(0)}%">${achievement.toFixed(0)}%</div></div></td>
+                        <td class="p-3 border-b border-gray-200 text-center">-</td>
+                    </tr>`;
+                return;
+            }
+
+            // バグ修正: 変数名をキャメルケースで正しく取得
+            const attempts = isReview ? data.reviewAttempts : data.attempts;
+            if (isReview && attempts === 0) return;
+            
+            const mistakes = isReview ? data.reviewMistakes : data.mistakes;
+            const understood = isReview ? data.reviewUnderstoodCount : data.understoodCount;
+            const notUnderstood = isReview ? data.reviewNotUnderstoodCount : data.notUnderstoodCount;
+            
+            const achievement = !isReview && data.totalGroups > 0 ? (data.completedGroups / data.totalGroups) * 100 : 0;
+            const understandingTotal = understood + notUnderstood;
+            const understandingRate = understandingTotal > 0 ? (understood / understandingTotal) * 100 : 0;
+            
+            totalAttempts += attempts || 0;
+            totalMistakes += mistakes || 0;
+            totalUnderstood += understood || 0;
+            totalNotUnderstood += notUnderstood || 0;
+            
+            if (!isReview) {
+                totalCompleted += data.completedGroups;
+                totalGroups += data.totalGroups;
+            }
+            
+            tableHTML += `
+                <tr>
+                    <td class="p-3 border-b border-gray-200">${topicName}</td>
+                    <td class="p-3 border-b border-gray-200 text-center">${attempts || 0}</td>
+                    <td class="p-3 border-b border-gray-200 text-center">${mistakes || 0}</td>
+                    ${!isReview ? `<td class="p-3 border-b border-gray-200"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-blue-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: ${achievement.toFixed(0)}%">${achievement.toFixed(0)}%</div></div></td>` : ''}
+                    <td class="p-3 border-b border-gray-200"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-purple-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: ${understandingRate.toFixed(0)}%">${understandingRate.toFixed(0)}%</div></div></td>
+                </tr>`;
+        });
+        
+        const overallAchievement = !isReview && totalGroups > 0 ? (totalCompleted / totalGroups) * 100 : 0;
+        const overallUnderstandingTotal = totalUnderstood + totalNotUnderstood;
+        const overallUnderstandingRate = overallUnderstandingTotal > 0 ? (totalUnderstood / overallUnderstandingTotal) * 100 : 0;
+        
+        tableHTML += `
+                </tbody>
+                <tfoot class="font-bold bg-gray-50">
+                    <tr>
+                        <td class="p-3 border-t-2 border-gray-300">総合</td>
+                        <td class="p-3 border-t-2 border-gray-300 text-center">${totalAttempts}</td>
+                        <td class="p-3 border-t-2 border-gray-300 text-center">${totalMistakes}</td>
+                        ${!isReview ? `<td class="p-3 border-t-2 border-gray-300"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-green-500 h-4 rounded-full text-xs text-white text-center leading-4" style="width: ${overallAchievement.toFixed(0)}%">${overallAchievement.toFixed(0)}%</div></div></td>` : ''}
+                        <td class="p-3 border-t-2 border-gray-300"><div class="w-full bg-gray-200 rounded-full h-4"><div class="bg-purple-600 h-4 rounded-full text-xs text-white text-center leading-4" style="width: ${overallUnderstandingRate.toFixed(0)}%">${overallUnderstandingRate.toFixed(0)}%</div></div></td>
+                    </tr>
+                </tfoot>
+            </table>`;
+        return tableHTML;
+    },
+
+    renderTOC() {
+        this.elements.toc.innerHTML = '';
+        if (this.state.isTeacherMode) {
+            this.data.topics.forEach((topic, index) => {
+                const details = document.createElement('details');
+                details.className = 'toc-topic-group';
+                if (index === this.state.currentTopicIndex) {
+                    details.open = true;
+                }
+                const summary = document.createElement('summary');
+                summary.textContent = topic;
+                details.appendChild(summary);
+
+                const questionList = document.createElement('ul');
+                questionList.className = 'ml-4 mt-1 space-y-1';
+
+                const topicQuestions = this.data.questions.filter(q => q.topicIndex === index);
+                topicQuestions.forEach(q => {
+                    const li = document.createElement('li');
+                    const button = document.createElement('button');
+                    button.className = 'toc-question-btn';
+                    if (this.state.currentQuestion && q.id === this.state.currentQuestion.id) {
+                        button.classList.add('active');
+                    }
+                    button.textContent = `Q${q.id}`;
+                    button.title = q.question.replace(/<br>/g, ' '); // HTMLタグを除去してツールチップに
+                    button.onclick = () => this.jumpToQuestion(q.id);
+                    li.appendChild(button);
+                    questionList.appendChild(li);
+                });
+
+                details.appendChild(questionList);
+                this.elements.toc.appendChild(details);
+            });
+        } else {
+            this.data.topics.forEach((topic, index) => {
+                const li = document.createElement('li');
+                li.textContent = topic;
+                li.className = 'toc-item p-3 rounded-md transition-colors';
+                if (index < this.state.currentTopicIndex) {
+                    li.classList.add('completed');
+                } else if (index === this.state.currentTopicIndex) {
+                    li.classList.add('active');
+                }
+                this.elements.toc.appendChild(li);
+            });
+        }
+        this.renderKaTeX(this.elements.toc);
+    },
+
+    renderKaTeX(element) {
+        if (typeof renderMathInElement === 'function' && element) {
+            requestAnimationFrame(() => {
+                try {
+                    renderMathInElement(element, this.katexOptions);
+                } catch (e) {
+                    console.error("KaTeX rendering failed:", e);
+                }
+            });
+        } else if (typeof renderMathInElement === 'undefined') {
+            setTimeout(() => this.renderKaTeX(element), 100);
+        }
+    },
+
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    },
+
+    returnToStart() {
+        this.elements.modalOverlay.style.display = 'flex';
+        this.elements.reportModal.classList.add('hidden', 'scale-95', 'opacity-0');
+        this.elements.reportModal.classList.remove('scale-100', 'opacity-100');
+        this.elements.startModal.style.display = 'block';
+        this.elements.studentIdInput.value = '';
+        this.elements.studentNameInput.value = '';
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        window.app.init();
+    } catch (e) {
+        console.error("Failed to initialize app:", e);
+        alert("アプリケーションの初期化に失敗しました。");
+    }
+});
+</script>
+
+</body>
+</html>
